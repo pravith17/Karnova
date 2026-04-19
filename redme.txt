@@ -1,0 +1,76 @@
+Karnova Enterprise Unified Portal
+
+Welcome to the complete, production-ready Karnova Enterprise platform. This system handles identity verification, agricultural land records, subsidy schemes, market tracking, and support for the farmers of Karnataka.
+
+🚀 Architecture
+
+The entire platform is now rendered securely via a Single Page Application (SPA) (index.html). The routing, tabs, and logic dynamically adapt and mount based on the role of the authenticated user (Farmer, Officer, or Super Admin).
+
+Setup Instructions
+
+Verify that your .env file matches the API keys provided in your backend codebase.
+
+Open your terminal in the Karnova directory.
+
+Install dependencies: npm install
+
+Start the backend: node server.js or npm start
+
+Open index.html in your web browser.
+
+🛡️ Super Admin Access
+
+The Super Admin console allows you to provision and assign Krishi Officers across the state. Only the Super Admin can create Officer accounts.
+
+How to Login as Super Admin
+
+Open index.html in your browser.
+
+In the central login form, enter the following credentials:
+
+Login ID: Karnova.admin@gov.in
+
+Password: Ha28@oihdb#233
+(Note: If you run into any issues and reinstall the database from scratch, the system will seamlessly accept this password and auto-upgrade it to military-grade bcrypt encryption during your first login.)
+
+Click "Authenticate Identity".
+
+The system will recognize the Admin credentials and instantly mount the Super Admin Console. No OTP is required for the admin.
+
+⚙️ Krishi Officer Access
+
+Officers manage live applications, publish schemes, update live market data, and post agricultural jobs.
+
+How to Login as an Officer
+
+First, log into the Super Admin Console (instructions above).
+
+Provision a new officer using the "Provision Krishi Officer" form (Assign them an email, phone, and temporary password).
+
+Log out of the Admin console.
+
+On the main login form (index.html), enter the Email and Password you just created for the officer.
+
+Click "Authenticate Identity". The system will route the user directly to the Officer Portal.
+
+Officer Capabilities:
+
+Market & Jobs: Officers can add real-time market prices and agricultural job postings. These instantly appear on all Farmer dashboards. They can also seamlessly delete entries.
+
+Review Apps: Approve or reject farmer subsidy applications.
+
+Helpdesk: Respond in real-time to citizen queries.
+
+🌾 Farmer Access
+
+Farmers have access to live weather, active schemes, their digital Krishi Identity card, and direct officer support.
+
+How to Login as a Farmer
+
+Click the "Farmer Registration" tab on the main page.
+
+Fill out the identity details and submit. An OTP will be sent via Email & WhatsApp (via Brevo & VerifyWay).
+
+Enter the 4-digit OTP to complete registration.
+
+From then on, use the phone number or Krishi ID to log in. (OTP verification is strictly enforced to protect Citizen data).

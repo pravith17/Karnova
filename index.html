@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Karnova Enterprise — Unified Portal</title>
+
+<!-- Fonts & External Libraries -->
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { gov: { green: '#094021', light: '#155e33', gold: '#D4A017', blue: '#1C3F60' } },
+        fontFamily: { sans: ['Inter', 'sans-serif'], serif: ['Merriweather', 'serif'] },
+        animation: { 
+            fadeUp: 'fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards', 
+            slideIn: 'slideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards' 
+        },
+        keyframes: { 
+            fadeUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+            slideIn: { '0%': { opacity: '0', transform: 'translateX(100%)' }, '100%': { opacity: '1', transform: 'translateX(0)' } }
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  body { background-color: #F8FAFC; }
+  
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Premium ID Card Styling */
+  .id-card-bg {
+      background: linear-gradient(135deg, #094021 0%, #115e33 50%, #042411 100%);
+      box-shadow: inset 0 0 0 1px rgba(212,160,23,0.3);
+  }
+  .id-guilloche {
+      background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.06) 1px, transparent 0);
+      background-size: 16px 16px;
+  }
+
+  /* PDF Mode Forces QR Reveal */
+  .pdf-mode .qr-reveal { opacity: 1 !important; }
+  .pdf-mode .qr-cover { opacity: 0 !important; }
+
+  /* Helpdesk Chat Bubbles */
+  .msg-bubble { max-width: 85%; padding: 18px 24px; border-radius: 18px; font-size: 1rem; line-height: 1.6; word-break: break-word; white-space: pre-wrap; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+  .msg-me { background: #094021; color: white; align-self: flex-end; border-bottom-right-radius: 6px; }
+  .msg-them { background: #FFFFFF; border: 1px solid #E2E8F0; color: #1A1C1E; align-self: flex-start; border-bottom-left-radius: 6px; }
+
+  /* Premium Hover & Transition Utilities */
+  .gov-card-hover { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+  .gov-card-hover:hover { transform: translateY(-6px); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.1); }
+</style>
+</head>
+<body class="text-slate-800 antialiased flex flex-col h-screen overflow-hidden">
+
+<!-- ═══════════════════════════════════════
+     TOP GOVERNMENT BANNER
+═══════════════════════════════════════ -->
+<div class="bg-gov-blue text-white py-2.5 px-8 md:px-16 text-[11px] font-bold tracking-[0.2em] flex justify-between items-center z-50 shrink-0 shadow-md uppercase">
+  <div>Government of India | Department of Agriculture</div>
+  <div>Karnova Enterprise Secure</div>
+</div>
+
+<div id="toast-container" class="fixed bottom-10 right-10 z-[9999] flex flex-col gap-5 pointer-events-none"></div>
+
+<!-- ═══════════════════════════════════════
+     AUTH PAGE CONTAINER
+═══════════════════════════════════════ -->
+<div id="login-wrapper" class="flex-1 flex flex-col md:flex-row h-full overflow-y-auto">
+  <div class="hidden md:flex flex-1 bg-gradient-to-br from-gov-green via-gov-light to-gov-blue p-20 flex-col justify-center text-white relative overflow-hidden">
+    <div class="w-24 h-24 border border-white/30 flex items-center justify-center rounded-3xl bg-white/10 mb-12 backdrop-blur-md shadow-2xl">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="opacity-90"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <h1 class="text-6xl font-serif font-black leading-[1.1] mb-8 z-10 tracking-tight">Official Krishi<br>Identity Portal</h1>
+    <p class="text-xl font-light max-w-lg z-10 opacity-90 leading-relaxed tracking-wide">A unified, secure, and transparent gateway for Farmers, Krishi Officers, and Administrators of Karnataka.</p>
+    <div class="absolute inset-0 opacity-10 id-guilloche pointer-events-none"></div>
+  </div>
+
+  <div class="flex-[1.2] bg-white flex items-center justify-center p-10 sm:p-20 relative h-full">
+    <div class="w-full max-w-[500px]">
+      <div class="flex bg-slate-100 p-2 rounded-2xl mb-12 relative shadow-inner">
+        <div id="auth-slider" class="absolute top-2 left-2 w-[calc(50%-8px)] h-[calc(100%-16px)] bg-white rounded-xl shadow-sm transition-transform duration-500 ease-out"></div>
+        <button class="flex-1 py-4 text-[15px] font-black tracking-widest uppercase text-gov-green z-10 auth-tab transition" onclick="setAuthMode('login', 0)">Portal Login</button>
+        <button class="flex-1 py-4 text-[15px] font-black tracking-widest uppercase text-slate-500 z-10 auth-tab transition" onclick="setAuthMode('signup', 1)">Registration</button>
+      </div>
+
+      <div id="auth-login-block" class="space-y-8 block animate-fadeUp">
+        <div class="mb-10">
+          <h2 class="text-4xl font-serif font-black text-gray-900 mb-3">Welcome Back</h2>
+          <p class="text-lg text-slate-500 font-medium">Secure access for Farmers, Officers, and Admins.</p>
+        </div>
+        <div class="space-y-6">
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-2.5 uppercase tracking-wider">Login Identity</label>
+            <input type="text" id="log-id" class="w-full p-5 border-2 border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-gov-green focus:ring-4 focus:ring-gov-green/10 outline-none transition text-lg" placeholder="Email, Phone, or Krishi ID">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-2.5 uppercase tracking-wider">Secure Password</label>
+            <input type="password" id="log-pass" class="w-full p-5 border-2 border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-gov-green focus:ring-4 focus:ring-gov-green/10 outline-none transition text-lg" placeholder="••••••••">
+          </div>
+        </div>
+        
+        <div id="otp-area" class="hidden p-10 bg-slate-50 border-2 border-slate-100 rounded-3xl space-y-8 mt-10">
+          <p class="text-base font-bold text-center text-slate-600">Enter the 4-digit security code sent to your registered Email & WhatsApp.</p>
+          <div class="flex justify-center gap-5">
+            <input type="text" maxlength="1" class="otp-char w-20 h-24 text-center text-5xl font-black border-2 border-slate-300 rounded-2xl text-gov-green focus:border-gov-green outline-none" onkeyup="moveToNext(this, event)" onpaste="handlePaste(event, '.otp-char')">
+            <input type="text" maxlength="1" class="otp-char w-20 h-24 text-center text-5xl font-black border-2 border-slate-300 rounded-2xl text-gov-green focus:border-gov-green outline-none" onkeyup="moveToNext(this, event)">
+            <input type="text" maxlength="1" class="otp-char w-20 h-24 text-center text-5xl font-black border-2 border-slate-300 rounded-2xl text-gov-green focus:border-gov-green outline-none" onkeyup="moveToNext(this, event)">
+            <input type="text" maxlength="1" class="otp-char w-20 h-24 text-center text-5xl font-black border-2 border-slate-300 rounded-2xl text-gov-green focus:border-gov-green outline-none" onkeyup="moveToNext(this, event)">
+          </div>
+          <button onclick="verifyLoginOTP()" class="w-full bg-gov-green hover:bg-gov-light text-white text-xl font-black tracking-widest uppercase py-5 rounded-2xl shadow-xl transition">Verify & Login</button>
+        </div>
+        
+        <button id="btn-send-otp" onclick="initLogin()" class="w-full bg-gov-green hover:bg-gov-light text-white text-xl font-black tracking-widest uppercase py-5 rounded-2xl shadow-xl transition transform hover:-translate-y-1 mt-10">Authenticate Identity</button>
+      </div>
+
+      <div id="auth-signup-block" class="space-y-8 hidden animate-fadeUp">
+        <div id="signup-fields">
+          <div class="mb-10">
+            <h2 class="text-4xl font-serif font-black text-gray-900 mb-3">Register Entity</h2>
+            <p class="text-lg text-slate-500 font-medium">Create your verified Farmer digital identity.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-6 mb-6">
+            <div><label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">First Name</label><input type="text" id="reg-fname" class="w-full p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-base focus:ring-4 focus:ring-gov-green/10 transition bg-slate-50"></div>
+            <div><label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">Last Name</label><input type="text" id="reg-lname" class="w-full p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-base focus:ring-4 focus:ring-gov-green/10 transition bg-slate-50"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-6 mb-6">
+            <div><label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">Aadhar Number</label><input type="text" id="reg-aadhar" maxlength="14" placeholder="XXXX-XXXX-XXXX" class="w-full p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-base focus:ring-4 focus:ring-gov-green/10 transition bg-slate-50"></div>
+            <div><label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">DOB</label><input type="date" id="reg-dob" class="w-full p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-base text-slate-600 focus:ring-4 focus:ring-gov-green/10 transition bg-slate-50"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-6 mb-6">
+            <div><label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">Email</label><input type="email" id="reg-email" class="w-full p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-base focus:ring-4 focus:ring-gov-green/10 transition bg-slate-50"></div>
+            <div><label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">Phone</label><input type="tel" id="reg-phone" maxlength="10" class="w-full p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-base focus:ring-4 focus:ring-gov-green/10 transition bg-slate-50"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-6 mb-6">
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">District</label>
+              <select id="reg-district" class="w-full p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-base bg-slate-50 text-slate-700 focus:ring-4 focus:ring-gov-green/10 transition cursor-pointer">
+                <option value="">Select District</option><option value="Bengaluru Urban">Bengaluru Urban</option><option value="Mysuru">Mysuru</option><option value="Mandya">Mandya</option><option value="Belagavi">Belagavi</option><option value="Hubballi">Hubballi</option>
+              </select>
+            </div>
+            <div><label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">Panchayat</label><input type="text" id="reg-panch" class="w-full p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-base focus:ring-4 focus:ring-gov-green/10 transition bg-slate-50"></div>
+          </div>
+          <div class="mb-6"><label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">Passport Photo (<1MB)</label><input type="file" id="reg-photo" accept="image/*" class="w-full p-3 border-2 border-slate-200 rounded-2xl text-base text-slate-600 bg-slate-50 cursor-pointer"></div>
+          <div class="mb-10"><label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">Create Password</label><input type="password" id="reg-pass" class="w-full p-4 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-base focus:ring-4 focus:ring-gov-green/10 transition bg-slate-50"></div>
+          
+          <button onclick="sendSignupOTP()" class="w-full bg-gov-green hover:bg-gov-light text-white text-xl font-black tracking-widest uppercase py-5 rounded-2xl shadow-xl transition transform hover:-translate-y-1">Send Verification OTP</button>
+        </div>
+
+        <!-- Registration OTP -->
+        <div id="signup-otp-section" class="hidden p-10 bg-slate-50 border-2 border-slate-100 rounded-3xl space-y-8">
+          <h3 class="text-center font-serif font-black text-gov-green text-3xl">Verify Contacts</h3>
+          <p class="text-base font-bold text-center text-slate-600">Enter the 4-digit code sent to Email & WhatsApp.</p>
+          <div class="flex justify-center gap-5">
+            <input type="text" maxlength="1" class="s-otp-char w-20 h-24 text-center text-5xl font-black border-2 border-slate-300 rounded-2xl text-gov-green focus:border-gov-green outline-none" onkeyup="moveToNext(this, event)" onpaste="handlePaste(event, '.s-otp-char')">
+            <input type="text" maxlength="1" class="s-otp-char w-20 h-24 text-center text-5xl font-black border-2 border-slate-300 rounded-2xl text-gov-green focus:border-gov-green outline-none" onkeyup="moveToNext(this, event)">
+            <input type="text" maxlength="1" class="s-otp-char w-20 h-24 text-center text-5xl font-black border-2 border-slate-300 rounded-2xl text-gov-green focus:border-gov-green outline-none" onkeyup="moveToNext(this, event)">
+            <input type="text" maxlength="1" class="s-otp-char w-20 h-24 text-center text-5xl font-black border-2 border-slate-300 rounded-2xl text-gov-green focus:border-gov-green outline-none" onkeyup="moveToNext(this, event)">
+          </div>
+          <button onclick="handleSignup()" class="w-full bg-gov-green hover:bg-gov-light text-white text-xl font-black tracking-widest uppercase py-5 rounded-2xl shadow-xl transition mt-4">Create Identity</button>
+          <button onclick="setAuthMode('signup', 1)" class="w-full text-sm text-slate-500 font-bold mt-4 hover:text-slate-800 transition uppercase tracking-widest">← Back to Details</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     DASHBOARD CONTAINER
+═══════════════════════════════════════ -->
+<div id="dashboard-wrapper" class="hidden flex-1 flex-col relative h-full w-full overflow-hidden">
+  
+  <nav class="bg-white/95 backdrop-blur-xl border-b border-slate-200 px-8 md:px-16 h-[90px] flex justify-between items-center shadow-sm shrink-0 w-full z-40">
+    <div class="flex items-center h-full flex-1 min-w-0">
+      <div class="font-black text-[26px] text-gov-green font-serif whitespace-nowrap shrink-0 flex items-center mr-10 md:mr-16">
+         <div class="w-8 h-8 border-2 border-gov-green/30 flex items-center justify-center rounded-xl bg-gov-green/5 mr-4">
+           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#094021" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+         </div>
+         Karnova <span id="nav-role-badge" class="ml-5 text-[12px] bg-slate-100 text-slate-600 px-3.5 py-1.5 rounded-lg border border-slate-200 font-sans tracking-[0.2em] uppercase shadow-sm font-bold">USER</span>
+      </div>
+      <div class="flex-1 flex items-center h-full gap-6 md:gap-10 overflow-x-auto no-scrollbar" id="dynamic-nav-links"></div>
+    </div>
+    <button onclick="logout()" class="ml-8 text-sm font-black tracking-widest text-slate-600 border-2 border-slate-200 px-8 md:px-10 py-3.5 rounded-full hover:bg-slate-50 hover:text-slate-900 transition shrink-0 shadow-sm uppercase">Sign Out</button>
+  </nav>
+
+  <div class="py-12 md:py-16 px-8 md:px-16 max-w-[1600px] mx-auto w-full flex-1 overflow-y-auto no-scrollbar relative">
+      
+      <!-- FARMER DASHBOARD SECTIONS -->
+      <div id="farmer-views" class="hidden">
+        
+        <div id="f-tab-overview" class="block space-y-12">
+          <div class="flex flex-col-reverse xl:flex-row justify-between items-start gap-16 mb-16 animate-fadeUp" style="animation-delay: 0.1s;">
+            <div class="flex-1 mt-8 xl:mt-0">
+              <h2 class="text-5xl sm:text-6xl font-serif font-black text-slate-900 mb-6 leading-tight tracking-tight">Welcome, <br><span id="u-display-name" class="text-gov-green">Farmer</span></h2>
+              <p class="text-slate-500 text-xl leading-relaxed max-w-2xl font-medium">Manage your verified land holdings, track live market prices, apply for official government subsidies, and access secure support.</p>
+            </div>
+            
+            <!-- EXCLUSIVE PREMIUM HOVER KRISHI ID CARD -->
+            <div class="shrink-0 flex flex-col items-center xl:items-end w-full xl:w-auto perspective-1000">
+              <div id="printable-id-card" class="id-card-wrapper rounded-3xl shadow-2xl text-white overflow-hidden id-card-bg group transition-transform duration-500 hover:-translate-y-2">
+                <div class="absolute inset-0 opacity-10 id-guilloche pointer-events-none"></div>
+                <div class="absolute -bottom-16 -right-16 w-64 h-64 border-[40px] border-white/5 rounded-full pointer-events-none"></div>
+                
+                <div class="flex justify-between items-center bg-black/30 px-6 py-4 border-b border-white/10 relative z-10 backdrop-blur-sm">
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded border border-gov-gold/50 flex items-center justify-center bg-gradient-to-br from-gov-gold/20 to-transparent shadow-sm">
+                      <div class="w-4 h-4 border-[2px] border-gov-gold rotate-45"></div>
+                    </div>
+                    <div class="flex flex-col">
+                       <span class="text-[13px] font-black tracking-[0.15em] text-gov-gold uppercase leading-tight">Govt. of Karnataka</span>
+                       <span class="text-[9px] font-bold tracking-widest text-white/70 uppercase mt-0.5">Department of Agriculture</span>
+                    </div>
+                  </div>
+                  <div class="text-[10px] font-black tracking-[0.2em] text-white bg-white/10 px-3.5 py-2 rounded-lg border border-white/20 shadow-inner">KRISHI PEHCHAN</div>
+                </div>
+                
+                <div class="flex p-6 gap-8 h-[calc(100%-66px)] relative z-10 items-center">
+                  <div class="flex flex-col items-center w-[100px] shrink-0">
+                    <img id="u-card-photo" src="" class="w-[100px] h-[125px] object-cover rounded-xl border-[3px] border-white/90 shadow-xl bg-black/20" alt="Photo">
+                  </div>
+                  <div class="flex-1 flex flex-col justify-center h-full">
+                    <div class="flex justify-between items-start w-full">
+                       <div class="flex flex-col">
+                          <span class="text-[10px] uppercase font-bold text-white/60 tracking-[0.2em] mb-1.5">Identity Number</span>
+                          <span id="u-card-id" class="text-gov-gold font-bold text-[22px] font-serif tracking-wide leading-none mb-5">--</span>
+                       </div>
+                       
+                       <div id="u-card-qr-container" class="relative w-[65px] h-[65px] bg-white p-1.5 rounded-xl shadow-lg shrink-0 ring-2 ring-white/20 transition-all duration-500 overflow-hidden">
+                          <div id="u-card-qr" class="w-full h-full flex items-center justify-center transition-opacity duration-500 opacity-0 group-hover:opacity-100 qr-reveal"></div>
+                          <div class="absolute inset-0 flex items-center justify-center bg-white text-gov-green text-[10px] font-black text-center leading-tight tracking-widest uppercase transition-opacity duration-500 opacity-100 group-hover:opacity-0 cursor-default qr-cover">Hover<br>QR</div>
+                       </div>
+                    </div>
+                    
+                    <div>
+                       <span class="text-[10px] uppercase font-bold text-white/60 tracking-[0.2em] block mb-1.5">Full Name</span>
+                       <span id="u-card-name" class="font-bold text-[24px] font-serif leading-none text-white block truncate w-full mb-6">--</span>
+                    </div>
+                    
+                    <div class="flex gap-10 mt-auto">
+                      <div><div class="text-[10px] uppercase font-bold text-white/60 tracking-[0.2em] mb-1">DOB</div><div id="u-card-dob" class="text-[13px] font-bold tracking-wider">--</div></div>
+                      <div><div class="text-[10px] uppercase font-bold text-white/60 tracking-[0.2em] mb-1">District</div><div id="u-card-dist" class="text-[13px] font-bold truncate max-w-[120px] tracking-wider">--</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button onclick="downloadCardPDF()" class="mt-6 text-[12px] font-black tracking-widest uppercase text-slate-600 bg-white border-2 border-slate-200 px-8 py-3.5 rounded-full shadow-sm hover:bg-slate-50 hover:text-slate-900 transition flex items-center gap-3">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Download Official Document
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-8 animate-fadeUp" style="animation-delay: 0.2s;">
+            <div class="bg-white p-10 rounded-[2rem] shadow-xl gov-card-hover relative overflow-hidden group">
+              <div class="absolute left-0 top-0 bottom-0 w-2 bg-gov-green"></div>
+              <div class="text-sm font-black text-slate-400 uppercase tracking-widest mb-3">Verified Land</div><div class="text-5xl font-black text-slate-800"><span id="ov-land-total">0.0</span> <span class="text-lg font-bold text-slate-400 uppercase">Acres</span></div><div class="text-sm text-slate-500 mt-4 font-semibold">Across <span id="ov-land-count" class="font-black text-slate-700">0</span> secure parcels</div>
+            </div>
+            <div class="bg-white p-10 rounded-[2rem] shadow-xl gov-card-hover relative overflow-hidden group">
+              <div class="absolute left-0 top-0 bottom-0 w-2 bg-gov-gold"></div>
+              <div class="text-sm font-black text-slate-400 uppercase tracking-widest mb-3">Active Applications</div><div class="text-5xl font-black text-slate-800" id="ov-app-count">0</div><div class="text-sm text-gov-gold mt-4 font-black tracking-wide">Currently in Processing</div>
+            </div>
+            <div class="bg-white p-10 rounded-[2rem] shadow-xl gov-card-hover relative overflow-hidden group">
+              <div class="absolute left-0 top-0 bottom-0 w-2 bg-blue-500"></div>
+              <div class="text-sm font-black text-slate-400 uppercase tracking-widest mb-3">Resolved Queries</div><div class="text-5xl font-black text-slate-800" id="ov-query-count">0</div><div class="text-sm text-slate-500 mt-4 font-semibold">Through Official Helpdesk</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-12 mt-16">
+            <div class="lg:col-span-2 space-y-12 animate-fadeUp" style="animation-delay: 0.3s;">
+              <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden gov-card-hover">
+                <div class="bg-slate-50 px-10 py-8 border-b border-slate-200 flex justify-between items-center"><h3 class="font-serif font-black text-gov-green text-2xl">My Land Records (Bhoomi)</h3><button onclick="syncLandRecords()" class="text-sm font-black tracking-widest uppercase bg-white border-2 border-slate-200 text-slate-600 px-6 py-3 rounded-xl hover:bg-slate-50 shadow-sm transition flex items-center gap-2">🔄 Sync Records</button></div>
+                <div id="u-land-list" class="divide-y divide-slate-100 bg-white"></div>
+              </div>
+              <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden gov-card-hover">
+                <div class="bg-slate-50 px-10 py-8 border-b border-slate-200"><h3 class="font-serif font-black text-gov-green text-2xl">Recent Application Activity</h3></div>
+                <div id="recent-activity-list" class="divide-y divide-slate-100 bg-white"></div>
+              </div>
+            </div>
+
+            <div class="space-y-12 animate-fadeUp" style="animation-delay: 0.4s;">
+              <div class="bg-gradient-to-br from-gov-blue to-[#112a42] rounded-[2rem] p-10 text-white shadow-2xl relative overflow-hidden gov-card-hover">
+                <div class="absolute -right-16 -top-16 w-64 h-64 border-[30px] border-white/5 rounded-full pointer-events-none"></div>
+                <div class="flex justify-between items-start mb-10 relative z-10">
+                   <div><h3 class="font-serif font-black text-2xl tracking-wide">Live Weather</h3><div class="text-xs text-blue-200 font-black tracking-[0.2em] mt-2 uppercase" id="w-date">--</div></div>
+                   <div class="bg-black/30 backdrop-blur-md px-5 py-2.5 rounded-xl text-sm font-mono font-black tracking-[0.2em] text-blue-100 border border-white/10 shadow-inner" id="w-time">--:--</div>
+                </div>
+                <div class="relative z-10">
+                   <div class="text-[80px] font-black leading-none drop-shadow-2xl tracking-tighter" id="w-temp">--°C</div>
+                   <div class="text-3xl font-bold mt-4 tracking-wide" id="w-city">District</div>
+                   <div class="text-lg font-semibold text-blue-200 capitalize mt-2 mb-10 tracking-wide" id="w-desc">Condition</div>
+                </div>
+                <div class="grid grid-cols-2 gap-6 border-t border-white/10 pt-8 relative z-10">
+                   <div class="flex items-center gap-2 text-sm text-white/70 font-black tracking-widest">PRECIP: <span id="w-precip" class="text-white font-black text-base">--</span></div>
+                   <div class="flex items-center gap-2 text-sm text-white/70 font-black tracking-widest">HUM: <span id="w-humidity" class="text-white font-black text-base">--%</span></div>
+                   <div class="col-span-2 flex items-center gap-2 text-sm text-white/70 font-black tracking-widest mt-2">WIND: <span id="w-wind" class="text-white font-black text-base">-- km/h</span></div>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden gov-card-hover">
+                <div class="bg-slate-50 px-10 py-8 border-b border-slate-200"><h3 class="font-serif font-black text-slate-800 text-2xl">Live Market Overview</h3></div>
+                <div id="u-market-preview" class="divide-y divide-slate-100 bg-white"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="f-tab-schemes" class="hidden">
+          <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden">
+            <div class="px-10 py-10 border-b border-slate-200 bg-slate-50"><h3 class="text-3xl font-serif font-black text-gray-900 mb-3">Available Government Schemes</h3><p class="text-lg font-medium text-slate-500">Apply for agricultural subsidies and securely track your official status.</p></div>
+            <div id="u-schemes-list" class="p-10 space-y-8 bg-white min-h-[600px]"></div>
+          </div>
+        </div>
+
+        <div id="f-tab-market" class="hidden">
+          <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden">
+            <div class="px-10 py-10 border-b border-slate-200 bg-slate-50">
+              <h3 class="text-3xl font-serif font-black text-gray-900 mb-6">Agricultural Market Prices</h3>
+              <div class="relative">
+                <svg width="20" height="20" fill="none" stroke="#94A3B8" stroke-width="3" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="absolute left-6 top-6"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search for crops, vegetables, seeds..." class="w-full p-5 pl-16 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green bg-white text-lg font-bold text-slate-700 transition shadow-sm" onkeyup="filterList('u-market-list-full', this.value)">
+              </div>
+            </div>
+            <div id="u-market-list-full" class="divide-y divide-slate-100 bg-white min-h-[600px] p-6"></div>
+          </div>
+        </div>
+
+        <div id="f-tab-jobs" class="hidden">
+          <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden">
+            <div class="px-10 py-10 border-b border-slate-200 bg-slate-50">
+              <h3 class="text-3xl font-serif font-black text-gray-900 mb-6">Agricultural Job Board</h3>
+              <div class="relative">
+                <svg width="20" height="20" fill="none" stroke="#94A3B8" stroke-width="3" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="absolute left-6 top-6"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search by job title or location..." class="w-full p-5 pl-16 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green bg-white text-lg font-bold text-slate-700 transition shadow-sm" onkeyup="filterList('u-jobs-list-full', this.value)">
+              </div>
+            </div>
+            <div id="u-jobs-list-full" class="divide-y divide-slate-100 bg-white min-h-[600px] p-6"></div>
+          </div>
+        </div>
+
+        <div id="f-tab-helpdesk" class="hidden space-y-12">
+          <div class="bg-white rounded-[2rem] shadow-xl p-10">
+            <h3 class="font-serif font-black text-gray-900 text-3xl mb-8">Raise a New Issue</h3>
+            <div class="flex flex-col gap-6">
+              <div class="flex flex-col xl:flex-row gap-6">
+                <input type="text" id="u-q-topic" placeholder="Subject Line..." class="flex-1 p-5 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green bg-slate-50 text-lg font-bold transition">
+                <select id="u-q-ref" class="w-full xl:w-[400px] p-5 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green bg-slate-50 text-base font-black uppercase tracking-widest text-slate-500 cursor-pointer transition">
+                  <option value="">No Reference (New Query)</option>
+                </select>
+              </div>
+              <div class="flex flex-col xl:flex-row gap-6">
+                <input type="text" id="u-q-text" placeholder="Describe your problem in detail..." class="flex-1 p-5 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green bg-slate-50 text-lg font-bold transition">
+                <button onclick="raiseQuery()" class="bg-gov-green hover:bg-gov-light text-white font-black tracking-widest px-12 py-5 rounded-2xl shadow-xl transition whitespace-nowrap text-lg uppercase">Submit Ticket</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex flex-col md:flex-row gap-8 h-[80vh]">
+            <div class="w-full md:w-[35%] lg:w-[30%] bg-white border border-slate-200 rounded-[2rem] shadow-xl flex flex-col overflow-hidden h-full shrink-0">
+              <div class="p-8 border-b border-slate-200 bg-slate-50 flex gap-4 shadow-sm z-10">
+                 <button class="flex-1 py-3 text-xs font-black tracking-[0.2em] rounded-xl border bg-gov-green border-gov-green text-white transition u-filter-btn shadow-md uppercase" onclick="setQFilter('user', 'All', this)">ALL</button>
+                 <button class="flex-1 py-3 text-xs font-black tracking-[0.2em] rounded-xl border bg-white border-slate-300 text-slate-500 hover:bg-slate-50 transition u-filter-btn shadow-sm uppercase" onclick="setQFilter('user', 'Open', this)">OPEN</button>
+                 <button class="flex-1 py-3 text-xs font-black tracking-[0.2em] rounded-xl border bg-white border-slate-300 text-slate-500 hover:bg-slate-50 transition u-filter-btn shadow-sm uppercase" onclick="setQFilter('user', 'Resolved', this)">SOLVED</button>
+              </div>
+              <div id="u-query-list" class="flex-1 overflow-y-auto divide-y divide-slate-100 no-scrollbar bg-slate-50/50"></div>
+            </div>
+            <div class="flex-1 bg-white border border-slate-200 rounded-[2rem] shadow-xl flex flex-col overflow-hidden h-full">
+              <div id="u-chat-head" class="p-8 border-b border-slate-200 bg-slate-50 shadow-sm z-10 min-h-[100px] flex items-center justify-center"><h3 class="font-serif font-bold text-slate-400 text-xl">Select a Query from the left panel</h3></div>
+              <div id="u-chat-history" class="flex-1 p-10 overflow-y-auto bg-white flex flex-col gap-6 no-scrollbar pointer-events-auto"><div class="m-auto text-slate-400 font-bold text-xl tracking-wide">Conversation history will appear here</div></div>
+              <div id="u-chat-input-area" class="p-8 bg-slate-50 border-t border-slate-200 flex gap-5 hidden z-10">
+                <input type="text" id="u-chat-msg" placeholder="Type your reply..." class="flex-1 border-2 border-slate-200 rounded-2xl px-6 py-5 outline-none focus:border-gov-green text-lg shadow-inner bg-white font-bold transition">
+                <button onclick="sendReply('user')" class="bg-gov-green hover:bg-gov-light text-white font-black tracking-widest px-12 py-5 rounded-2xl shadow-xl transition uppercase text-lg">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- OFFICER DASHBOARD SECTIONS -->
+      <div id="officer-views" class="hidden">
+        
+        <div class="flex justify-between items-end mb-12">
+          <div>
+            <h2 class="text-5xl font-serif font-black text-slate-900 mb-4 tracking-tight">Officer Command Center</h2>
+            <p class="text-slate-500 font-bold text-xl uppercase tracking-widest">Krishi ID: <strong id="o-display-id" class="text-gov-green font-black">--</strong> &nbsp;|&nbsp; Jurisdiction: <strong id="o-display-dist" class="text-slate-800 font-black">--</strong></p>
+          </div>
+        </div>
+
+        <div id="o-tab-schemes" class="block space-y-10">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div class="lg:col-span-1 space-y-10">
+              <div class="bg-white p-10 rounded-[2rem] border border-slate-200 shadow-xl">
+                 <h3 class="font-serif font-black text-gov-green text-3xl mb-8">Publish Scheme</h3>
+                 <div class="space-y-6">
+                    <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Scheme Number</label><input type="text" id="s-num" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+                    <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Title</label><input type="text" id="s-title" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+                    <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Description</label><textarea id="s-desc" rows="3" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></textarea></div>
+                    <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">End Date</label><input type="date" id="s-end" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-black text-slate-600"></div>
+                    <button onclick="publishScheme()" class="w-full bg-gov-green text-white font-black tracking-widest uppercase text-xl py-5 rounded-2xl shadow-xl hover:bg-gov-light transition mt-6">Publish Scheme</button>
+                 </div>
+              </div>
+            </div>
+            <div class="lg:col-span-2 space-y-10">
+              <div class="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col h-[500px]">
+                <div class="bg-slate-50 px-10 py-8 border-b border-slate-200 shrink-0"><h3 class="font-serif font-black text-slate-800 text-2xl">Review Farmer Applications</h3></div>
+                <div class="p-8 bg-white shrink-0 border-b border-slate-100">
+                  <select id="app-scheme-select" onchange="loadApplications()" class="w-full p-5 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-lg font-black tracking-wide uppercase bg-slate-50 text-slate-700 transition cursor-pointer"><option>Loading...</option></select>
+                </div>
+                <div id="applications-list" class="flex-1 overflow-y-auto divide-y divide-slate-100 p-4 no-scrollbar bg-slate-50/50"></div>
+              </div>
+              <div class="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col h-[500px]">
+                <div class="bg-slate-50 px-10 py-8 border-b border-slate-200 shrink-0"><h3 class="font-serif font-black text-slate-800 text-2xl">Active Schemes List</h3></div>
+                <div id="o-schemes-list" class="flex-1 overflow-y-auto divide-y divide-slate-100 p-4 bg-white no-scrollbar"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="o-tab-land" class="hidden space-y-10">
+          <div class="bg-white p-12 rounded-[2rem] border border-slate-200 border-t-[8px] border-t-gov-gold shadow-xl max-w-5xl mx-auto">
+            <h3 class="font-serif font-black text-3xl mb-3">Issue Land Record (Bhoomi)</h3>
+            <p class="text-base text-slate-500 font-bold mb-10 tracking-wide">Aadhar number must exactly match the farmer's profile for successful sync.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-10">
+              <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Farmer Aadhar</label><input type="text" id="l-aadhar" maxlength="14" class="w-full p-5 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+              <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Survey No.</label><input type="text" id="l-survey" class="w-full p-5 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+              <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Area (Acres)</label><input type="number" id="l-area" class="w-full p-5 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+              <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Taluk</label><input type="text" id="l-taluk" class="w-full p-5 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+              <div class="sm:col-span-2"><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Panchayat</label><input type="text" id="l-panch" class="w-full p-5 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+            </div>
+            <button onclick="issueLand()" class="bg-gov-gold text-black font-black tracking-widest text-xl py-5 px-12 rounded-2xl shadow-xl hover:bg-yellow-500 transition w-full sm:w-auto uppercase">Issue Record to Database</button>
+          </div>
+          
+          <div class="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+             <div class="bg-slate-50 px-10 py-8 border-b border-slate-200 flex justify-between items-center"><h3 class="font-serif font-black text-slate-800 text-2xl">State Land Records Registry</h3></div>
+             <div class="p-8 border-b border-slate-100 bg-white">
+               <div class="relative">
+                <svg width="20" height="20" fill="none" stroke="#94A3B8" stroke-width="3" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="absolute left-6 top-5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="land-search" placeholder="Search Aadhar or Survey No..." class="w-full p-5 pl-16 border-2 border-slate-200 rounded-2xl outline-none focus:border-gov-green text-lg font-bold transition shadow-sm" onkeyup="filterList('o-land-registry-list', this.value)">
+               </div>
+             </div>
+             <div id="o-land-registry-list" class="divide-y divide-slate-100 max-h-[800px] overflow-y-auto bg-slate-50/50 p-4 no-scrollbar"></div>
+          </div>
+        </div>
+
+        <div id="o-tab-market" class="hidden">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div class="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col max-h-[1000px]">
+              <div class="bg-slate-50 px-10 py-8 border-b border-slate-200 shrink-0"><h3 class="font-serif font-black text-slate-800 text-2xl">Market Price Management</h3></div>
+              <div class="p-10 space-y-8 border-b border-slate-100 bg-white shrink-0 shadow-sm z-10">
+                <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Crop/Item Name</label><input type="text" id="m-title" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-base bg-slate-50 transition font-bold"></div>
+                <div class="flex gap-6">
+                  <div class="flex-1"><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Price (₹)</label><input type="text" id="m-price" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-base bg-slate-50 transition font-bold"></div>
+                  <div class="flex-1"><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Unit/Market</label><input type="text" id="m-desc" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-base bg-slate-50 transition font-bold"></div>
+                </div>
+                <button onclick="addData('market')" class="w-full bg-gov-green text-white font-black tracking-widest uppercase py-5 rounded-2xl shadow-xl hover:bg-gov-light transition mt-6 text-lg">Publish Market Price</button>
+              </div>
+              <div id="o-market-list" class="flex-1 overflow-y-auto divide-y divide-slate-100 bg-slate-50/50 no-scrollbar p-4"></div>
+            </div>
+            
+            <div class="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col max-h-[1000px]">
+              <div class="bg-slate-50 px-10 py-8 border-b border-slate-200 shrink-0"><h3 class="font-serif font-black text-slate-800 text-2xl">Job Board Management</h3></div>
+              <div class="p-10 space-y-8 border-b border-slate-100 bg-white shrink-0 shadow-sm z-10">
+                <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Job Title</label><input type="text" id="j-title" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-base bg-slate-50 transition font-bold"></div>
+                <div class="flex gap-6">
+                  <div class="flex-1"><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Salary/Wage</label><input type="text" id="j-wage" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-base bg-slate-50 transition font-bold"></div>
+                  <div class="flex-1"><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Location</label><input type="text" id="j-loc" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-base bg-slate-50 transition font-bold"></div>
+                </div>
+                <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Description / Contact Info</label><input type="text" id="j-desc" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-base bg-slate-50 transition font-bold"></div>
+                <button onclick="addData('job')" class="w-full bg-gov-green text-white font-black tracking-widest uppercase py-5 rounded-2xl shadow-xl hover:bg-gov-light transition mt-6 text-lg">Post Job Opening</button>
+              </div>
+              <div id="o-jobs-list" class="flex-1 overflow-y-auto divide-y divide-slate-100 bg-slate-50/50 no-scrollbar p-4"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="o-tab-helpdesk" class="hidden">
+          <div class="flex flex-col md:flex-row gap-10 h-[85vh]">
+            <div class="w-full md:w-[35%] lg:w-[30%] bg-white border border-slate-200 rounded-[2rem] shadow-xl flex flex-col overflow-hidden h-full shrink-0">
+              <div class="p-8 border-b border-slate-200 bg-slate-50 space-y-6 shadow-sm z-10">
+                 <div class="flex gap-3">
+                   <button class="flex-1 py-3.5 text-xs font-black tracking-[0.2em] rounded-xl border bg-gov-green border-gov-green text-white transition o-filter-btn shadow-md uppercase" onclick="setQFilter('officer', 'All', this)">ALL</button>
+                   <button class="flex-1 py-3.5 text-xs font-black tracking-[0.2em] rounded-xl border bg-white border-slate-300 text-slate-500 hover:bg-slate-50 transition o-filter-btn shadow-sm uppercase" onclick="setQFilter('officer', 'Open', this)">OPEN</button>
+                   <button class="flex-1 py-3.5 text-xs font-black tracking-[0.2em] rounded-xl border bg-white border-slate-300 text-slate-500 hover:bg-slate-50 transition o-filter-btn shadow-sm uppercase" onclick="setQFilter('officer', 'Resolved', this)">SOLVED</button>
+                 </div>
+                 <select id="o-dist-filter" onchange="renderOfficerQueries()" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-sm font-black tracking-widest uppercase bg-white text-slate-700 transition cursor-pointer"><option value="All">All Districts</option></select>
+              </div>
+              <div id="o-query-list" class="flex-1 overflow-y-auto divide-y divide-slate-100 bg-white no-scrollbar"></div>
+            </div>
+            
+            <div class="flex-1 bg-white border border-slate-200 rounded-[2rem] shadow-xl flex flex-col overflow-hidden h-full min-h-[600px]">
+              <div id="o-chat-head" class="p-8 border-b border-slate-200 bg-slate-50 flex items-center justify-center min-h-[110px] shadow-sm z-10">
+                  <h3 class="font-serif font-bold text-slate-400 text-xl">Select a Farmer's Query from the left panel</h3>
+              </div>
+              <div id="o-chat-history" class="flex-1 p-10 overflow-y-auto bg-white flex flex-col gap-6 no-scrollbar">
+                  <div class="m-auto text-slate-400 font-bold text-xl tracking-wide">Conversation history will appear here</div>
+              </div>
+              <div id="o-chat-input-area" class="p-8 bg-slate-50 border-t border-slate-200 flex gap-5 shrink-0 hidden z-10">
+                <input type="text" id="o-chat-msg" placeholder="Reply to citizen..." class="flex-1 border-2 border-slate-200 rounded-2xl px-6 py-5 outline-none focus:border-gov-green text-lg shadow-inner bg-white font-bold transition">
+                <button onclick="sendReply('officer')" class="bg-gov-green hover:bg-gov-light text-white font-black tracking-widest px-12 py-5 rounded-2xl shadow-xl transition uppercase text-lg">Send Reply</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ADMIN DASHBOARD SECTIONS -->
+      <div id="admin-views" class="hidden">
+        <div class="flex justify-between items-end mb-12 animate-fadeUp">
+          <div><h2 class="text-5xl font-serif font-black text-slate-900 mb-4 tracking-tight">Super Admin Console</h2><p class="text-slate-500 font-bold text-xl uppercase tracking-widest">System Configuration & Officer Network Management</p></div>
+        </div>
+
+        <div id="a-tab-admin" class="block space-y-10 animate-fadeUp" style="animation-delay: 0.1s;">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div class="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden h-fit">
+              <div class="bg-slate-50 px-10 py-8 border-b border-slate-200"><h3 class="font-serif font-black text-gov-green text-3xl">Provision Krishi Officer</h3></div>
+              <div class="p-10 space-y-8">
+                <div class="grid grid-cols-2 gap-6">
+                  <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">First Name</label><input type="text" id="a-fname" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+                  <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Last Name</label><input type="text" id="a-lname" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-6">
+                  <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Email (Login ID)</label><input type="email" id="a-email" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+                  <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Phone</label><input type="text" id="a-phone" maxlength="10" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-6">
+                  <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Assigned District</label><input type="text" id="a-dist" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+                  <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Salary (INR)</label><input type="number" id="a-sal" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+                </div>
+                <div><label class="block text-sm font-black text-slate-700 mb-2.5 uppercase tracking-widest">Temporary Password</label><input type="password" id="a-pass" class="w-full p-4 border-2 border-slate-200 rounded-xl outline-none focus:border-gov-green text-lg bg-slate-50 transition font-bold"></div>
+                
+                <button onclick="createOfficer()" class="w-full bg-gov-green text-white font-black tracking-[0.2em] text-xl py-5 rounded-2xl shadow-xl hover:bg-gov-light transition mt-8 uppercase">Generate Credentials</button>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col h-[850px]">
+              <div class="bg-slate-50 px-10 py-8 border-b border-slate-200 shrink-0"><h3 class="font-serif font-black text-slate-800 text-3xl">Active Officers Network</h3></div>
+              <div id="admin-officer-list" class="flex-1 overflow-y-auto divide-y divide-slate-100 p-6 bg-slate-50/50 no-scrollbar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT CORE LOGIC
+═══════════════════════════════════════ -->
+<script>
+  const API_BASE = "http://127.0.0.1:5001/api"; 
+  const WEATHER_KEY = "d1637fdf6239755d93d3d682ba0ee420";
+  let currentUser = null; let tempLoginPhone = null; let photoBase64 = "";
+  let socket = null; let activeQueryId = null; let allQueriesCache = [];
+  let currentQFilter = 'All';
+
+  // --- UI Utils ---
+  function toast(msg, type="info") {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `px-6 py-5 rounded-2xl shadow-2xl flex items-center gap-4 font-bold text-base text-white ${type === 'danger' ? 'bg-red-600' : (type === 'success' ? 'bg-green-600' : 'bg-slate-800')} animate-slideIn`;
+    t.innerHTML = `<span class="text-xl">${type === 'danger' ? '!' : '✓'}</span> <span>${msg}</span>`;
+    c.appendChild(t); setTimeout(() => t.remove(), 4000);
+  }
+
+  function setAuthMode(mode) {
+    const isLogin = mode === 'login';
+    document.querySelectorAll('.auth-tab').forEach((b, i) => { 
+        if((isLogin && i===0) || (!isLogin && i===1)) { b.classList.add('text-gov-green'); b.classList.remove('text-slate-500'); }
+        else { b.classList.remove('text-gov-green'); b.classList.add('text-slate-500'); }
+    });
+    document.getElementById('auth-slider').style.transform = `translateX(${isLogin ? 0 : 100}%)`;
+    
+    document.getElementById('auth-signup-block').style.display = isLogin ? 'none' : 'block';
+    document.getElementById('auth-login-block').style.display = isLogin ? 'block' : 'none';
+  }
+
+  function switchTab(tabId, navElement) {
+    // Hide all internal tabs first
+    ['f-tab-overview', 'f-tab-schemes', 'f-tab-market', 'f-tab-jobs', 'f-tab-helpdesk',
+     'o-tab-schemes', 'o-tab-land', 'o-tab-market', 'o-tab-helpdesk', 'a-tab-admin'].forEach(id => {
+       const el = document.getElementById(id); if(el) { el.classList.add('hidden'); el.classList.remove('block', 'animate-fadeUp'); }
+    });
+    
+    // Show correct tab mapping based on arg
+    let target = tabId;
+    if(tabId === 'tab-overview') target = 'f-tab-overview';
+    if(tabId === 'tab-schemes') target = 'f-tab-schemes';
+    if(tabId === 'tab-market') target = 'f-tab-market';
+    if(tabId === 'tab-jobs') target = 'f-tab-jobs';
+    if(tabId === 'tab-helpdesk') target = 'f-tab-helpdesk';
+    if(tabId === 'tab-schemes-officer') target = 'o-tab-schemes';
+    if(tabId === 'tab-land-officer') target = 'o-tab-land';
+    if(tabId === 'tab-market-jobs') target = 'o-tab-market';
+    if(tabId === 'tab-helpdesk-officer') target = 'o-tab-helpdesk';
+    if(tabId === 'tab-admin') target = 'a-tab-admin';
+    
+    const el = document.getElementById(target); if(el) { el.classList.remove('hidden'); el.classList.add('block', 'animate-fadeUp'); }
+    
+    document.querySelectorAll('.nav-tab-btn').forEach(a => { a.classList.remove('text-gov-green', 'border-gov-green'); a.classList.add('text-slate-500', 'border-transparent'); });
+    if(navElement) { navElement.classList.remove('text-slate-500', 'border-transparent'); navElement.classList.add('text-gov-green', 'border-gov-green'); }
+  }
+
+  function moveToNext(el, event) {
+    if (event.key === 'Backspace' && el.previousElementSibling) el.previousElementSibling.focus();
+    else if (el.value.length === 1 && el.nextElementSibling) el.nextElementSibling.focus();
+  }
+
+  function handlePaste(e, selector) {
+    e.preventDefault();
+    const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
+    if (/^\d{4}$/.test(pasteData)) {
+      const inputs = document.querySelectorAll(selector);
+      inputs.forEach((input, index) => { input.value = pasteData[index]; });
+      inputs[3].focus();
+    }
+  }
+  
+  function filterList(listId, query) {
+    query = query.toLowerCase();
+    const items = document.getElementById(listId).getElementsByClassName('data-row');
+    for(let item of items) { item.style.display = item.innerText.toLowerCase().includes(query) ? 'flex' : 'none'; }
+  }
+
+  // --- Boot & Real-Time ---
+  document.addEventListener('DOMContentLoaded', () => {
+    // Event listeners
+    const regPhoto = document.getElementById('reg-photo');
+    if(regPhoto) {
+      regPhoto.addEventListener('change', function(e) {
+        const file = e.target.files[0]; if(!file) return;
+        if(file.size > 1024 * 1024) return toast("Photo must be < 1MB", "danger");
+        const r = new FileReader(); r.onload = (ev) => photoBase64 = ev.target.result; r.readAsDataURL(file);
+      });
+    }
+    const regAadhar = document.getElementById('reg-aadhar');
+    if(regAadhar) {
+      regAadhar.addEventListener('input', function(e) {
+        let v = e.target.value.replace(/\D/g, ''); let m = v.match(/.{1,4}/g); if(m) e.target.value = m.join('-');
+      });
+    }
+
+    const storedUser = localStorage.getItem('karnova_user_session');
+    if (storedUser) {
+      currentUser = JSON.parse(storedUser);
+      fetch(`${API_BASE}/auth/me`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ userId: currentUser._id }) })
+      .then(res => res.json()).then(data => { if(data.success) { currentUser = data.user; localStorage.setItem('karnova_user_session', JSON.stringify(currentUser)); launchDashboardBasedOnRole(); } else logout(); }).catch(() => {});
+    }
+  });
+
+  function initSocketEvents() {
+    if(socket) socket.disconnect(); socket = io(API_BASE.replace('/api',''));
+    socket.on('refresh_data', (data) => {
+       if(currentUser.role === 'officer') { fetchGenericNetwork(data.type, data.type==='market' ? 'o-market-list' : 'o-jobs-list', true); }
+       else {
+          if(data.type==='market') { fetchGenericNetwork('market','u-market-list-full', true); fetchGenericNetwork('market','u-market-preview', false); }
+          if(data.type==='job') { fetchGenericNetwork('job','u-jobs-list-full', true); }
+       }
+    });
+    socket.on('refresh_queries', () => { currentUser.role === 'user' ? loadUserQueriesNetwork() : loadOfficerQueriesNetwork(); });
+    socket.on('refresh_land', () => { if(currentUser.role === 'officer') fetchOfficerLandsNetwork(); });
+    socket.on('new_message', (msgData) => { if(msgData.queryId === activeQueryId) fetchChatData(activeQueryId); });
+  }
+
+  // --- Auth Handlers ---
+  async function sendSignupOTP() {
+    const phone = document.getElementById('reg-phone').value; const email = document.getElementById('reg-email').value;
+    if(!phone || !document.getElementById('reg-fname').value) return toast("Fill required fields", "danger");
+    toast('Generating Identity & Sending OTP...');
+    try {
+      const res = await fetch(`${API_BASE}/auth/send-otp`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone, email }) });
+      if(res.ok) { document.getElementById('signup-fields').style.display = 'none'; document.getElementById('signup-otp-section').style.display = 'block'; toast('OTP generated. Check console if testing locally.', 'success'); } else toast("Failed to send OTP", "danger");
+    } catch (err) { toast("Server connection failed.", "danger"); }
+  }
+
+  async function handleSignup() {
+    const payload = {
+      firstName: document.getElementById('reg-fname').value, lastName: document.getElementById('reg-lname').value, middleName: document.getElementById('reg-mname') ? document.getElementById('reg-mname').value : "",
+      aadhar: document.getElementById('reg-aadhar').value, dob: document.getElementById('reg-dob').value, email: document.getElementById('reg-email').value,
+      phone: document.getElementById('reg-phone').value, district: document.getElementById('reg-district').value, panchayat: document.getElementById('reg-panch').value,
+      password: document.getElementById('reg-pass').value, photo: photoBase64, otp: Array.from(document.querySelectorAll('.s-otp-char')).map(i=>i.value).join('')
+    };
+    if(payload.otp.length !== 4) return toast('Enter 4-digit OTP', 'danger');
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if(res.ok) { 
+        currentUser = data.user; localStorage.setItem('karnova_user_session', JSON.stringify(currentUser));
+        launchDashboardBasedOnRole(); toast(`Registration complete!`, "success"); setTimeout(() => alert(`IMPORTANT: Your Krishi ID is ${currentUser.krishiId}. Save this for logins.`), 500);
+      } else toast(data.error, "danger");
+    } catch(err) { toast("Server connection failed.", "danger"); }
+  }
+
+  async function initLogin() {
+    const loginId = document.getElementById('log-id').value; const password = document.getElementById('log-pass').value;
+    if(!loginId || !password) return toast('Enter credentials', 'danger');
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loginId, password }) });
+      const data = await res.json();
+      if(res.ok) {
+        if(data.verified) { currentUser = data.user; localStorage.setItem('karnova_user_session', JSON.stringify(currentUser)); launchDashboardBasedOnRole(); toast(`Welcome back, ${currentUser.firstName}!`, "success"); } 
+        else { tempLoginPhone = data.phone; document.getElementById('btn-send-otp').style.display = 'none'; document.getElementById('otp-area').style.display = 'block'; toast('OTP Sent! Check console if testing locally.', "success"); }
+      } else toast(data.error, "danger");
+    } catch(e) { toast("Server connection failed.", "danger"); }
+  }
+
+  async function verifyLoginOTP() {
+    const otp = Array.from(document.querySelectorAll('#otp-area .otp-char')).map(i=>i.value).join('');
+    if(otp.length !== 4) return toast('Enter 4-digit OTP', 'danger');
+    try {
+      const res = await fetch(`${API_BASE}/auth/verify`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone: tempLoginPhone, otp }) });
+      const data = await res.json();
+      if(res.ok) { currentUser = data.user; localStorage.setItem('karnova_user_session', JSON.stringify(currentUser)); launchDashboardBasedOnRole(); toast(`Login Successful!`, "success"); } else toast(data.error, "danger");
+    } catch(e) { toast("Verification failed", "danger"); }
+  }
+
+  function logout() { localStorage.removeItem('karnova_user_session'); location.reload(); }
+
+  // --- Dynamic Router ---
+  function launchDashboardBasedOnRole() {
+    document.getElementById('login-wrapper').classList.add('hidden'); document.getElementById('login-wrapper').classList.remove('flex');
+    document.getElementById('dashboard-wrapper').classList.remove('hidden'); document.getElementById('dashboard-wrapper').classList.add('flex');
+    
+    initSocketEvents(); 
+    
+    const rBadge = document.getElementById('nav-role-badge');
+    rBadge.innerText = currentUser.role.toUpperCase();
+    if(currentUser.role === 'officer') { rBadge.classList.add('bg-gov-gold', 'text-white', 'border-yellow-600'); rBadge.classList.remove('bg-slate-100', 'text-slate-600'); }
+    if(currentUser.role === 'admin') { rBadge.classList.add('bg-red-600', 'text-white', 'border-red-700'); rBadge.classList.remove('bg-slate-100', 'text-slate-600'); }
+
+    const dLinks = document.getElementById('dynamic-nav-links');
+
+    if(currentUser.role === 'user') {
+      dLinks.innerHTML = `<button class="nav-tab-btn text-gov-green border-b-[3px] border-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-overview', this)">Dashboard</button> <button class="nav-tab-btn text-slate-500 border-b-[3px] border-transparent hover:text-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-schemes', this)">Schemes</button> <button class="nav-tab-btn text-slate-500 border-b-[3px] border-transparent hover:text-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-market', this)">Market</button> <button class="nav-tab-btn text-slate-500 border-b-[3px] border-transparent hover:text-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-jobs', this)">Jobs</button> <button class="nav-tab-btn text-slate-500 border-b-[3px] border-transparent hover:text-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-helpdesk', this)">Helpdesk</button>`;
+      document.getElementById('farmer-views').classList.remove('hidden'); document.getElementById('farmer-views').classList.add('block');
+      initFarmerDashboard();
+    } else if(currentUser.role === 'officer') {
+      dLinks.innerHTML = `<button class="nav-tab-btn text-gov-green border-b-[3px] border-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-schemes-officer', this)">Schemes</button> <button class="nav-tab-btn text-slate-500 border-b-[3px] border-transparent hover:text-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-land-officer', this)">Land Registry</button> <button class="nav-tab-btn text-slate-500 border-b-[3px] border-transparent hover:text-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-market-jobs', this)">Market & Jobs</button> <button class="nav-tab-btn text-slate-500 border-b-[3px] border-transparent hover:text-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-helpdesk-officer', this)">Helpdesk</button>`;
+      document.getElementById('officer-views').classList.remove('hidden'); document.getElementById('officer-views').classList.add('block');
+      initOfficerDashboard();
+    } else if(currentUser.role === 'admin') {
+      dLinks.innerHTML = `<button class="nav-tab-btn text-gov-green border-b-[3px] border-gov-green font-black px-4 md:px-8 py-6 transition whitespace-nowrap h-full uppercase tracking-widest text-[13px]" onclick="switchTab('tab-admin', this)">Admin Console</button>`;
+      document.getElementById('admin-views').classList.remove('hidden'); document.getElementById('admin-views').classList.add('block');
+      initAdminDashboard();
+    }
+  }
+
+  // --- Farmer Logic ---
+  function initFarmerDashboard() {
+    document.getElementById('u-display-name').innerText = currentUser.firstName || 'Farmer';
+    document.getElementById('u-card-name').innerText = `${currentUser.firstName||''} ${currentUser.lastName||''}`.trim() || 'Pending Name';
+    document.getElementById('u-card-id').innerText = currentUser.krishiId || 'PENDING';
+    document.getElementById('u-card-dob').innerText = currentUser.dob || 'N/A';
+    document.getElementById('u-card-dist').innerText = currentUser.district || "Karnataka";
+    if(currentUser.photo) document.getElementById('u-card-photo').src = currentUser.photo;
+    
+    document.getElementById('u-card-qr').innerHTML = ""; 
+    new QRCode(document.getElementById("u-card-qr"), { text: `VERIFIED: ${currentUser.krishiId}\n${currentUser.firstName} ${currentUser.lastName}`, width: 100, height: 100, colorDark : "#094021", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L });
+
+    fetchRealWeather(currentUser.district || 'Karnataka');
+    fetchUserLandsNetwork(); fetchUserSchemesNetwork(); loadUserQueriesNetwork();
+    fetchGenericNetwork('market', 'u-market-preview', false); fetchGenericNetwork('market', 'u-market-list-full', true);
+    fetchGenericNetwork('job', 'u-jobs-list-full', true);
+  }
+
+  function downloadCardPDF() {
+      // PDF works best capturing flat DOM. Briefly remove flip class for perfect render.
+      const cardInner = document.querySelector('.flip-card-inner');
+      const originalTransform = cardInner.style.transform;
+      cardInner.style.transform = 'rotateY(0deg)';
+      
+      setTimeout(() => {
+        const element = document.getElementById('printable-id-card');
+        const opt = { margin: 10, filename: `Krishi_ID_${currentUser.krishiId}.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 3, useCORS: true, backgroundColor: '#ffffff' }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+        html2pdf().set(opt).from(element).save().then(() => {
+             cardInner.style.transform = originalTransform; // Restore flip
+        });
+      }, 100);
+  }
+
+  async function fetchRealWeather(city) {
+      if(window.clockInterval) clearInterval(window.clockInterval); 
+      window.clockInterval = setInterval(() => {
+          const now = new Date();
+          document.getElementById('w-time').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+          document.getElementById('w-date').innerText = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      }, 1000);
+      
+      try {
+          const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city},IN&units=metric&appid=${WEATHER_KEY}`);
+          if(!res.ok) throw new Error("API Limit");
+          const data = await res.json();
+          if(data.main) {
+            document.getElementById('w-temp').innerText = `${Math.round(data.main.temp)}°C`;
+            document.getElementById('w-city').innerText = data.name; 
+            document.getElementById('w-desc').innerText = data.weather[0].description;
+            document.getElementById('w-precip').innerText = data.clouds ? `${data.clouds.all}%` : '--'; 
+            document.getElementById('w-humidity').innerText = `${data.main.humidity}%`; 
+            document.getElementById('w-wind').innerText = `${data.wind.speed} km/h`;
+          }
+      } catch(e) { 
+          // Fallback to Demo if API key fails/CORS
+          startDemoWeatherFallback(city);
+      }
+  }
+
+  function startDemoWeatherFallback(city) {
+      if(window.weatherInterval) clearInterval(window.weatherInterval);
+      const generateWeather = () => {
+          const temps = [26, 28, 30, 32, 34, 25, 29, 31]; const conditions = ["Sunny", "Partly Cloudy", "Clear Sky", "Light Rain", "Breezy"];
+          document.getElementById('w-temp').innerText = `${temps[Math.floor(Math.random() * temps.length)]}°C`;
+          document.getElementById('w-city').innerText = city; document.getElementById('w-desc').innerText = conditions[Math.floor(Math.random() * conditions.length)];
+          document.getElementById('w-precip').innerText = `${Math.floor(Math.random() * 40)}%`; document.getElementById('w-humidity').innerText = `${Math.floor(Math.random() * 30) + 40}%`; document.getElementById('w-wind').innerText = `${Math.floor(Math.random() * 15) + 5} km/h`;
+      };
+      generateWeather(); window.weatherInterval = setInterval(generateWeather, 3600000);
+  }
+
+
+  async function fetchUserLandsNetwork() {
+    try {
+      const res = await fetch(`${API_BASE}/user/land/${currentUser._id}`); const lands = await res.json();
+      const el = document.getElementById('u-land-list'); let totalArea = 0;
+      if(!lands.length) { el.innerHTML = "<div class='p-10 text-center'><span class='text-slate-400 font-bold text-lg'>No land records linked. Click Sync to pull from Bhoomi Database.</span></div>"; } 
+      else {
+        el.innerHTML = lands.map(d => { totalArea += parseFloat(d.area);
+          return `<div class="p-6 flex justify-between items-center hover:bg-slate-50 transition border-b border-slate-100 last:border-0"><div class="flex flex-col"><strong class="text-slate-800 text-base font-bold">Survey No: ${d.surveyNumber}</strong><span class="text-sm text-slate-500 mt-1 font-semibold uppercase tracking-wide">📍 ${d.panchayat}, ${d.taluk}</span></div><div class="text-right flex flex-col items-end"><div class="text-gov-green font-black text-2xl">${d.area} <span class="text-xs text-slate-500 font-bold uppercase tracking-widest">Acres</span></div><span class="text-[10px] text-green-700 font-black tracking-widest mt-1 bg-green-50 border border-green-200 px-3 py-1 rounded shadow-sm">✔ BHOOMI RECORD</span></div></div>`;
+        }).join('');
+      }
+      document.getElementById('ov-land-total').innerText = totalArea.toFixed(1); document.getElementById('ov-land-count').innerText = lands.length;
+    } catch(e) {}
+  }
+  async function syncLandRecords() { toast("Connecting to Bhoomi Database..."); try { const res = await fetch(`${API_BASE}/user/sync-land`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ userId: currentUser._id, aadharNumber: currentUser.aadhar }) }); if(res.ok) { toast("Sync complete!", "success"); fetchUserLandsNetwork(); } } catch(e) { toast("Sync failed", "danger"); } }
+
+  async function fetchUserSchemesNetwork() {
+    try {
+      const res = await fetch(`${API_BASE}/schemes?userId=${currentUser._id}`); const schemes = await res.json();
+      const applied = schemes.filter(s => s.applicationStatus);
+      document.getElementById('ov-app-count').innerText = applied.length;
+      
+      document.getElementById('recent-activity-list').innerHTML = !applied.length ? "<div class='p-10 text-center'><span class='text-slate-400 font-bold text-lg'>No recent applications found.</span></div>" : applied.slice(0,3).map(s => {
+        let color = s.applicationStatus === 'Verified' ? 'text-green-700 bg-green-50 border-green-200' : (s.applicationStatus === 'Rejected' ? 'text-red-700 bg-red-50 border-red-200' : 'text-yellow-700 bg-yellow-50 border-yellow-200');
+        return `<div class="p-6 flex justify-between items-center hover:bg-slate-50 transition border-b border-slate-100 last:border-0"><div><div class="font-bold text-base text-slate-800">${s.title}</div><div class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Application Tracker</div></div><span class="px-4 py-2 rounded-lg text-[10px] font-black tracking-widest uppercase border ${color} shadow-sm">${s.applicationStatus}</span></div>`;
+      }).join('');
+
+      document.getElementById('u-schemes-list').innerHTML = !schemes.length ? "<div class='p-10 text-center'><span class='text-slate-400 font-bold text-lg'>No active schemes published by Govt.</span></div>" : schemes.map(s => {
+        let btnHTML = !s.applicationStatus ? `<button class="bg-gov-green text-white font-black tracking-widest px-8 py-3.5 rounded-2xl text-xs shadow-lg hover:bg-gov-light transition shrink-0 uppercase" onclick="applyForScheme('${s._id}')">Apply Now</button>` : `<span class="px-6 py-3.5 rounded-2xl text-[11px] font-black tracking-widest uppercase border bg-slate-100 text-slate-600 border-slate-300 shrink-0 shadow-inner">${s.applicationStatus}</span>`;
+        return `<div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-6 gov-card-hover"><div><div class="font-bold text-gov-green text-xl font-serif mb-1">${s.title} <span class="text-xs font-sans text-slate-400 font-bold tracking-widest ml-2 uppercase">(${s.schemeNumber})</span></div><div class="text-base font-medium text-slate-600 mb-3">${s.description}</div><div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Valid Until: ${new Date(s.endDate).toLocaleDateString()}</div></div>${btnHTML}</div>`;
+      }).join('');
+    } catch(e) {}
+  }
+  async function applyForScheme(schemeId) { try { const res = await fetch(`${API_BASE}/user/apply-scheme`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ schemeId, userId: currentUser._id }) }); if(res.ok) { toast("Application Submitted!", "success"); fetchUserSchemesNetwork(); } else toast("Failed to apply", "danger"); } catch(e) {} }
+
+  async function fetchGenericNetwork(type, elementId, isFull=false) {
+    try {
+      const res = await fetch(`${API_BASE}/data/${type}`); const data = await res.json();
+      const el = document.getElementById(elementId); if(!el) return;
+      if(!data.length) return el.innerHTML = "<div class='p-10 text-center'><span class='text-slate-400 font-bold text-lg'>No live data available right now.</span></div>";
+      const displayData = isFull ? data : data.slice(0,3);
+      el.innerHTML = displayData.map(d => `<div class="data-row p-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 ${isFull?'bg-white hover:bg-slate-50 transition border-b border-slate-100':'border-b border-slate-100 last:border-0 hover:bg-slate-50 transition'}"><div class="flex-1"><div class="font-bold text-slate-800 text-lg">${d.title}</div><div class="text-sm font-medium text-slate-500 mt-1">${d.description}</div></div><div class="text-left sm:text-right flex flex-col sm:items-end sm:mr-4"><div class="font-black text-gov-green text-2xl">${d.value1}</div><div class="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1">${d.value2 || ''}</div></div>${(currentUser.role==='officer') ? `<button class="bg-red-50 text-red-600 border border-red-200 font-bold px-5 py-2.5 rounded-xl text-xs hover:bg-red-100 transition shadow-sm uppercase tracking-wide" onclick="deleteData('${d._id}')">Delete</button>` : ''}</div>`).join('');
+    } catch(e) {}
+  }
+
+  // --- Officer Logic ---
+  function initOfficerDashboard() {
+    document.getElementById('o-display-id').innerText = currentUser.krishiId; document.getElementById('o-display-dist').innerText = currentUser.district || "All Regions";
+    fetchOfficerSchemes(); fetchOfficerSchemesForApps();
+    fetchGenericNetwork('market', 'o-market-list', true); fetchGenericNetwork('job', 'o-jobs-list', true);
+    fetchOfficerLandsNetwork(); loadOfficerQueriesNetwork();
+  }
+
+  async function fetchOfficerLandsNetwork() {
+    try {
+      const res = await fetch(`${API_BASE}/officer/land`); const lands = await res.json();
+      document.getElementById('o-land-registry-list').innerHTML = !lands.length ? "<div class='p-10 text-center'><span class='text-slate-400 font-bold text-lg'>No records in DB.</span></div>" : lands.map(d => `<div class="data-row p-6 bg-white border-b border-slate-100 hover:bg-slate-50 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div><strong class="text-gov-green text-lg font-bold">Survey: ${d.surveyNumber}</strong><div class="text-sm font-medium text-slate-600 mt-1">Aadhar: ${d.aadharNumber} &nbsp;|&nbsp; Area: <span class="font-bold text-slate-800">${d.area} Ac</span></div><div class="text-[11px] font-bold text-slate-400 mt-2 uppercase tracking-widest">📍 ${d.panchayat}, ${d.taluk}</div></div><div class="text-left sm:text-right flex flex-col sm:items-end gap-2">${d.linkedUserId ? `<span class="text-[10px] font-black text-green-700 uppercase tracking-widest bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg shadow-sm">✔ Synced to ${d.linkedUserId.firstName}</span>` : `<span class="text-[10px] font-black text-yellow-700 uppercase tracking-widest bg-yellow-50 border border-yellow-200 px-3 py-1.5 rounded-lg shadow-sm">⏳ Pending Sync</span>`}<span class="text-[10px] font-bold text-slate-400 mt-1">Issued: ${new Date(d.createdAt).toLocaleDateString()}</span></div></div>`).join('');
+    } catch(e) {}
+  }
+  async function issueLand() {
+    const payload = { aadharNumber: document.getElementById('l-aadhar').value, surveyNumber: document.getElementById('l-survey').value, area: document.getElementById('l-area').value, taluk: document.getElementById('l-taluk').value, panchayat: document.getElementById('l-panch').value };
+    if(!payload.aadharNumber || !payload.surveyNumber) return toast("Fill required fields", "danger");
+    const res = await fetch(`${API_BASE}/officer/land`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if(res.ok) { toast("Land Record Issued to Bhoomi!", "success"); ['l-aadhar','l-survey','l-area','l-taluk','l-panch'].forEach(i=>document.getElementById(i).value='');} else toast("Failed.", "danger");
+  }
+
+  async function addData(type) {
+    let payload = { type };
+    if(type === 'market') { payload.title = document.getElementById('m-title').value; payload.value1 = document.getElementById('m-price').value; payload.description = document.getElementById('m-desc').value; if(!payload.title) return toast("Fill Crop Name", "danger"); } 
+    else { payload.title = document.getElementById('j-title').value; payload.value1 = document.getElementById('j-wage').value; payload.value2 = document.getElementById('j-loc').value; payload.description = document.getElementById('j-desc').value; if(!payload.title) return toast("Fill Job Title", "danger"); }
+    try {
+      const res = await fetch(`${API_BASE}/data`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if(res.ok) { toast(`Posted successfully!`, "success"); if(type === 'market') { ['m-title','m-price','m-desc'].forEach(id => document.getElementById(id).value=''); } else { ['j-title','j-wage','j-loc','j-desc'].forEach(id => document.getElementById(id).value=''); } }
+    } catch(e) {}
+  }
+  async function deleteData(id) { try { await fetch(`${API_BASE}/data/${id}`, { method: 'DELETE' }); toast("Deleted", "success"); } catch(e) {} }
+
+  async function publishScheme() {
+    const payload = { schemeNumber: document.getElementById('s-num').value, title: document.getElementById('s-title').value, description: document.getElementById('s-desc').value, endDate: document.getElementById('s-end').value };
+    const res = await fetch(`${API_BASE}/officer/schemes`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if(res.ok) { toast("Scheme published!", "success"); fetchOfficerSchemes(); } else toast("Failed.", "danger");
+  }
+  async function fetchOfficerSchemes() {
+    const res = await fetch(`${API_BASE}/schemes`); const data = await res.json();
+    document.getElementById('o-schemes-list').innerHTML = data.map(s => `<div class="p-6 flex flex-col sm:flex-row sm:justify-between sm:items-center border-b border-slate-100 hover:bg-slate-50 transition gap-4"><div><strong class="text-gov-green text-lg">${s.title}</strong> <span class="text-sm font-black text-slate-400 tracking-widest uppercase ml-3">(${s.schemeNumber})</span></div><span class="text-[11px] font-black tracking-widest uppercase text-slate-500 bg-white border border-slate-200 shadow-sm px-5 py-2.5 rounded-xl">Ends: ${new Date(s.endDate).toLocaleDateString()}</span></div>`).join('');
+  }
+  async function fetchOfficerSchemesForApps() {
+    const res = await fetch(`${API_BASE}/schemes`); const data = await res.json();
+    document.getElementById('app-scheme-select').innerHTML = '<option value="">-- Select Scheme --</option>' + data.map(s => `<option value="${s._id}">${s.title}</option>`).join('');
+  }
+  async function loadApplications() {
+    const schemeId = document.getElementById('app-scheme-select').value; if(!schemeId) return;
+    const res = await fetch(`${API_BASE}/officer/applications/${schemeId}`); const apps = await res.json();
+    const list = document.getElementById('applications-list');
+    if(!apps.length) return list.innerHTML = "<div class='p-10 text-center'><span class='text-slate-400 font-bold text-lg'>No applications yet.</span></div>";
+    list.innerHTML = apps.map(a => `<div class="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-5 hover:shadow-md transition mb-4"><div><strong class="text-lg font-bold text-slate-800">${a.userId.firstName} ${a.userId.lastName}</strong> <span class="text-[10px] font-black tracking-widest uppercase text-gov-green bg-green-50 border border-green-200 px-3 py-1 rounded-lg ml-2 shadow-sm">ID: ${a.userId.krishiId}</span><div class="text-sm font-medium text-slate-500 mt-2">Phone: ${a.userId.phone} &nbsp;|&nbsp; Applied: ${new Date(a.createdAt).toLocaleDateString()}</div></div><div class="flex gap-3 w-full md:w-auto">${a.status === 'Pending' ? `<button class="flex-1 md:flex-none bg-green-600 text-white font-black tracking-widest px-8 py-3.5 rounded-xl text-xs hover:bg-green-700 shadow-md transition uppercase" onclick="updateApp('${a._id}', 'Verified')">Verify</button><button class="flex-1 md:flex-none bg-white border-2 border-red-200 text-red-600 font-black tracking-widest px-8 py-3.5 rounded-xl text-xs hover:bg-red-50 shadow-sm transition uppercase" onclick="updateApp('${a._id}', 'Rejected')">Reject</button>` : `<span class="bg-slate-50 border border-slate-200 text-slate-600 px-6 py-3.5 rounded-xl text-[11px] font-black tracking-widest uppercase shadow-sm">${a.status}</span>`}</div></div>`).join('');
+  }
+  async function updateApp(appId, status) { await fetch(`${API_BASE}/officer/applications/${appId}/status`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) }); toast(`Marked ${status}`, "success"); loadApplications(); }
+
+  // --- Admin Logic ---
+  function initAdminDashboard() { loadOfficers(); }
+  async function loadOfficers() {
+    try {
+      const res = await fetch(`${API_BASE}/admin/officers`); const data = await res.json();
+      const list = document.getElementById('admin-officer-list');
+      if(!data.length) return list.innerHTML = "<div class='p-10 text-center'><span class='text-slate-400 font-bold text-lg'>No officers found.</span></div>";
+      list.innerHTML = data.map(o => `<div class="data-row p-6 bg-white border border-slate-200 rounded-2xl mb-4 shadow-sm hover:shadow-md transition flex justify-between items-center"><div><strong class="text-lg text-slate-800">${o.firstName} ${o.lastName}</strong><br><span class="text-sm font-medium text-slate-500 mt-1 inline-block">${o.email} &nbsp;|&nbsp; +91-${o.phone}</span></div><div class="text-right flex flex-col items-end"><span class="text-gov-green font-black text-base tracking-widest bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">${o.krishiId}</span><span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2">${o.district}</span></div></div>`).join('');
+    } catch(e) {}
+  }
+  async function createOfficer() {
+    const payload = { firstName: document.getElementById('a-fname').value, lastName: document.getElementById('a-lname').value, email: document.getElementById('a-email').value, phone: document.getElementById('a-phone').value, district: document.getElementById('a-dist').value, salary: document.getElementById('a-sal').value, password: document.getElementById('a-pass').value };
+    if(!payload.email || !payload.password || !payload.firstName) return toast("Required fields are missing", "danger");
+    try {
+      const res = await fetch(`${API_BASE}/admin/officers`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if(res.ok) { toast("Officer provisioned successfully.", "success"); loadOfficers(); ['a-fname','a-lname','a-email','a-phone','a-dist','a-sal','a-pass'].forEach(id => document.getElementById(id).value = ''); } 
+      else toast("Creation failed.", "danger");
+    } catch(e) { toast("Server error", "danger"); }
+  }
+
+
+  // --- HELPDESK ---
+  function setQFilter(role, filter, btnEl) {
+    currentQFilter = filter;
+    document.querySelectorAll(`.${role.charAt(0)}-filter-btn`).forEach(b => { 
+        b.classList.remove('bg-gov-green', 'text-white', 'border-gov-green'); 
+        b.classList.add('bg-white', 'text-slate-500', 'border-slate-300'); 
+    });
+    btnEl.classList.remove('bg-white', 'text-slate-500', 'border-slate-300');
+    btnEl.classList.add('bg-gov-green', 'text-white', 'border-gov-green');
+    role === 'user' ? renderUserQueries() : renderOfficerQueries();
+  }
+
+  async function raiseQuery() {
+    const topic = document.getElementById('u-q-topic').value; 
+    let text = document.getElementById('u-q-text').value;
+    const refVal = document.getElementById('u-q-ref') ? document.getElementById('u-q-ref').value : "";
+    
+    if(!topic || !text) return toast("Fill Subject and Description", "danger");
+    if(refVal) text = `[Ref: ${refVal}]\n\n${text}`;
+    
+    await fetch(`${API_BASE}/queries`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ userId: currentUser._id, topic, text }) });
+    document.getElementById('u-q-topic').value = ''; document.getElementById('u-q-text').value = ''; 
+    if(document.getElementById('u-q-ref')) document.getElementById('u-q-ref').value = '';
+    toast("Issue submitted successfully.", "success"); 
+  }
+
+  async function resolveQuery(qId) {
+    if(!confirm("Are you sure you want to mark this query as resolved? It will be closed for further replies.")) return;
+    try {
+        const q = allQueriesCache.find(x => x._id === qId);
+        if (q) q.status = 'Resolved';
+        renderUserQueries();
+        fetchChatData(qId); 
+
+        const res = await fetch(`${API_BASE}/queries/${qId}/status`, {
+            method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status: 'Resolved'})
+        });
+        if(res.ok) { toast("Query marked as resolved!", "success"); loadUserQueriesNetwork(); }
+    } catch(e) { toast("Error resolving query", "danger"); }
+  }
+
+  async function loadUserQueriesNetwork() {
+    try { 
+      const res = await fetch(`${API_BASE}/queries?userId=${currentUser._id}&role=user`); 
+      allQueriesCache = await res.json(); 
+      document.getElementById('ov-query-count').innerText = allQueriesCache.filter(q => q.status === 'Resolved').length; 
+      
+      const refSelect = document.getElementById('u-q-ref');
+      if(refSelect) {
+          const currentVal = refSelect.value;
+          refSelect.innerHTML = '<option value="">No Reference</option>' + allQueriesCache.map(q => `<option value="${q.queryNumber}">${q.queryNumber} - ${q.topic}</option>`).join('');
+          refSelect.value = currentVal;
+      }
+      renderUserQueries(); 
+    } catch(e) {}
+  }
+
+  function renderUserQueries() {
+    const list = document.getElementById('u-query-list');
+    let filtered = allQueriesCache;
+    if(currentQFilter === 'Open') filtered = filtered.filter(q => q.status !== 'Resolved'); if(currentQFilter === 'Resolved') filtered = filtered.filter(q => q.status === 'Resolved');
+    list.innerHTML = !filtered.length ? "<div class='p-10 text-center font-bold text-slate-400'>No queries found.</div>" : filtered.map(q => {
+      let color = q.status === 'Resolved' ? 'bg-green-500 shadow-green-500/50' : (q.status === 'Open' ? 'bg-red-500 shadow-red-500/50' : 'bg-yellow-500 shadow-yellow-500/50');
+      return `<div class="p-6 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition ${q._id === activeQueryId ? 'bg-green-50/50 border-l-[4px] border-l-gov-green' : 'border-l-[4px] border-l-transparent'}" onclick="openChat('${q._id}')"><div class="text-[11px] font-black tracking-widest text-gov-green mb-2">${q.queryNumber}</div><div class="font-bold text-base text-slate-800 leading-snug">${q.topic}</div><div class="text-[11px] font-bold text-slate-500 mt-3 flex items-center gap-2.5 uppercase tracking-widest"><span class="w-2.5 h-2.5 rounded-full ${color} shadow-sm"></span> ${q.status}</div></div>`;
+    }).join('');
+  }
+
+  async function loadOfficerQueriesNetwork() {
+    try {
+      const res = await fetch(`${API_BASE}/queries?role=officer`); allQueriesCache = await res.json();
+      const distSet = new Set(allQueriesCache.map(q => q.userId && q.userId.district ? q.userId.district : 'Unknown'));
+      const sel = document.getElementById('o-dist-filter'); const currentDist = sel.value;
+      sel.innerHTML = `<option value="All">All Districts</option>` + Array.from(distSet).map(d => `<option value="${d}">${d}</option>`).join('');
+      sel.value = currentDist && distSet.has(currentDist) ? currentDist : 'All';
+      renderOfficerQueries();
+    } catch(e) {}
+  }
+
+  function renderOfficerQueries() {
+    const list = document.getElementById('o-query-list'); const distFilter = document.getElementById('o-dist-filter').value;
+    let filtered = allQueriesCache;
+    if(distFilter !== 'All') filtered = filtered.filter(q => q.userId && q.userId.district === distFilter);
+    if(currentQFilter === 'Open') filtered = filtered.filter(q => q.status !== 'Resolved'); if(currentQFilter === 'Resolved') filtered = filtered.filter(q => q.status === 'Resolved');
+    list.innerHTML = !filtered.length ? "<div class='p-10 text-center font-bold text-slate-400'>No queries found.</div>" : filtered.map(q => {
+      let color = q.status === 'Resolved' ? 'bg-green-500 shadow-green-500/50' : (q.status === 'Open' ? 'bg-red-500 shadow-red-500/50' : 'bg-yellow-500 shadow-yellow-500/50');
+      const fname = q.userId ? `${q.userId.firstName} ${q.userId.lastName}` : 'Unknown';
+      return `<div class="p-6 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition ${q._id === activeQueryId ? 'bg-green-50/50 border-l-[4px] border-l-gov-green' : 'border-l-[4px] border-l-transparent'}" onclick="openChat('${q._id}')"><div class="flex justify-between items-center mb-2"><div class="text-[11px] font-black tracking-widest text-gov-green">${q.queryNumber}</div><span class="w-2.5 h-2.5 rounded-full ${color} shadow-sm"></span></div><div class="font-bold text-base text-slate-800 leading-snug">${q.topic}</div><div class="text-[11px] font-bold text-slate-500 mt-3 uppercase tracking-widest">Farmer: ${fname} &nbsp;|&nbsp; 📍 ${q.userId ? q.userId.district : ''}</div></div>`;
+    }).join('');
+  }
+
+  async function openChat(qId) { activeQueryId = qId; await fetchChatData(qId); currentUser.role === 'user' ? renderUserQueries() : renderOfficerQueries(); }
+
+  async function fetchChatData(qId) {
+    try {
+      const q = allQueriesCache.find(x => x._id === qId); if(!q) return;
+      const prefix = currentUser.role === 'user' ? 'u' : 'o';
+      
+      if(currentUser.role === 'officer' && q.userId) {
+         document.getElementById('o-chat-head').innerHTML = `<div class="flex items-center gap-4 w-full"><img src="${q.userId.photo || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDEyYzIuMjEgMCA0LTEuNzkgNC00czEuNzktNCA0LTRtMCA2YzIuNjcgMCA4IDEuMzQgOCA0djJIMGw0LTRjMC0yLjY2IDUuMzMtNCA4LTR6Ii8+PC9zdmc+'}" class="w-12 h-12 rounded-full object-cover border-2 border-slate-200 shadow-sm"><div class="flex-1"><h3 class="font-serif font-black text-slate-800 text-xl leading-tight">${q.userId.firstName} ${q.userId.lastName}</h3><div class="text-[9px] font-black text-gov-green uppercase tracking-widest mt-1 bg-green-50 px-2 py-0.5 rounded inline-block shadow-sm">Krishi ID: ${q.userId.krishiId}</div></div><div class="text-right text-[10px] font-bold text-slate-500 uppercase tracking-widest"><div class="bg-slate-100 border border-slate-200 px-2.5 py-1 rounded mb-1 inline-block shadow-sm">📞 ${q.userId.phone}</div><br><div class="bg-slate-100 border border-slate-200 px-2.5 py-1 rounded inline-block shadow-sm">📍 ${q.userId.district}</div></div></div>`;
+      } else if(currentUser.role === 'user') {
+         let resolveBtn = q.status !== 'Resolved' ? `<button onclick="resolveQuery('${q._id}')" class="bg-green-50 border-2 border-green-200 text-green-700 font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-sm hover:bg-green-100 transition shrink-0">MARK RESOLVED</button>` : `<span class="bg-slate-100 border-2 border-slate-200 text-slate-500 font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-sm shrink-0">ISSUE RESOLVED</span>`;
+         document.getElementById('u-chat-head').innerHTML = `<div class="flex justify-between items-center w-full"><h3 class="font-serif font-black text-slate-800 text-2xl">Ref: ${q.queryNumber}</h3> ${resolveBtn}</div>`;
+      }
+
+      const hist = document.getElementById(`${prefix}-chat-history`);
+      const atBottom = hist.scrollHeight - hist.scrollTop <= hist.clientHeight + 50; 
+      
+      hist.innerHTML = q.messages.map(m => { let isMe = m.senderRole === currentUser.role; return `<div class="msg-bubble ${isMe ? 'msg-me' : 'msg-them'}"><div class="text-[9px] opacity-70 mb-1.5 font-black uppercase tracking-widest">${isMe ? 'Me' : (m.senderRole)}</div><div>${m.text}</div></div>`; }).join('');
+      
+      const chatInputArea = document.getElementById(`${prefix}-chat-input-area`);
+      if(chatInputArea) {
+          if(q.status === 'Resolved') { chatInputArea.classList.add('hidden'); chatInputArea.classList.remove('flex'); }
+          else { chatInputArea.classList.remove('hidden'); chatInputArea.classList.add('flex'); }
+      }
+
+      if(atBottom) hist.scrollTop = hist.scrollHeight;
+    } catch(e) {}
+  }
+
+  async function sendReply(roleArg) {
+    if(!activeQueryId) return toast("Select a query thread.", "danger");
+    const input = document.getElementById(roleArg === 'user' ? 'u-chat-msg' : 'o-chat-msg'); const text = input.value.trim(); if(!text) return;
+    let payload = { senderRole: roleArg, text }; if(roleArg === 'officer') payload.officerId = currentUser._id;
+
+    const q = allQueriesCache.find(x => x._id === activeQueryId);
+    if(q) { q.messages.push({ senderRole: roleArg, text }); fetchChatData(activeQueryId); }
+    input.value = ''; 
+
+    await fetch(`${API_BASE}/queries/${activeQueryId}/reply`, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  }
+</script>
+</body>
+</html>
